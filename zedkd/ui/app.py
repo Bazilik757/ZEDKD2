@@ -5,7 +5,7 @@ import tkinter as tk
 from datetime import datetime
 from tkinter import filedialog, messagebox, simpledialog, ttk
 import ttkbootstrap as tb
-from ttkbootstrap.widgets import Meter, Separator
+from ttkbootstrap.widgets import Meter
 from typing import Optional, Dict, Any, List
 
 from ..crypto import (
@@ -266,7 +266,7 @@ class ZEDKDGApp:
         make_meter("Подписано", "signed", "success")
         make_meter("Зашифровано", "encrypted", "warning")
 
-        Separator(shell, bootstyle="dark").pack(fill="x", pady=(6, 12))
+        tb.Separator(shell, bootstyle="dark").pack(fill="x", pady=(6, 12))
 
         action_bar = ttk.Frame(shell, style="Panel.TFrame")
         action_bar.pack(fill="x", pady=(6, 10))
