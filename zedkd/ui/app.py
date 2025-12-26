@@ -5,6 +5,7 @@ import tkinter as tk
 from datetime import datetime
 from tkinter import filedialog, messagebox, simpledialog, ttk
 import ttkbootstrap as tb
+from ttkbootstrap.widgets import Meter, Separator
 from typing import Optional, Dict, Any, List
 
 from ..crypto import (
@@ -62,10 +63,11 @@ class ZEDKDGApp:
         self.active_view = tk.StringVar(value="flow")
 
         self.metrics_vars = {
-            "total": tk.StringVar(value="0"),
-            "signed": tk.StringVar(value="0"),
-            "encrypted": tk.StringVar(value="0"),
+            "total": tk.IntVar(value=0),
+            "signed": tk.IntVar(value=0),
+            "encrypted": tk.IntVar(value=0),
         }
+        self.metric_meters: Dict[str, Meter] = {}
 
         self.style = tb.Style(theme="superhero")
         self._init_style()
@@ -166,9 +168,20 @@ class ZEDKDGApp:
         signed = sum(1 for d in self.docs if d.sig_path)
         encrypted = sum(1 for d in self.docs if d.enc_path)
 
-        self.metrics_vars["total"].set(str(total))
-        self.metrics_vars["signed"].set(str(signed))
-        self.metrics_vars["encrypted"].set(str(encrypted))
+        self.metrics_vars["total"].set(total)
+        self.metrics_vars["signed"].set(signed)
+        self.metrics_vars["encrypted"].set(encrypted)
+        self._update_meters()
+
+    def _update_meters(self):
+        if not self.metric_meters:
+            return
+
+        max_val = max(1, *(int(v.get()) for v in self.metrics_vars.values()))
+        for key, meter in self.metric_meters.items():
+            value = int(self.metrics_vars[key].get())
+            meter.configure(amounttotal=max(max_val, 1))
+            meter.configure(amountused=value)
 
     def ensure_integrity_before_step(self, d: DocumentRecord) -> bool:
         """
@@ -200,43 +213,63 @@ class ZEDKDGApp:
     # -------------------------
 
     def build_ui(self):
-        shell = tk.Frame(self.root, bg="#0b1224", padx=16, pady=16)
+        shell = ttk.Frame(self.root, padding=16, style="Panel.TFrame")
         shell.pack(fill="both", expand=True)
 
-        header = tk.Frame(shell, bg="#0b1224")
+        header = ttk.Frame(shell, style="Panel.TFrame")
         header.pack(fill="x")
 
-        hero = tk.Frame(header, bg="#0f172a", padx=16, pady=16, highlightbackground="#1e293b", highlightthickness=1)
+        hero = ttk.Frame(header, padding=16, style="Glass.TFrame")
         hero.pack(fill="x")
 
-        hero_left = tk.Frame(hero, bg="#0f172a")
+        hero_left = ttk.Frame(hero, style="Glass.TFrame")
         hero_left.pack(side="left", fill="x", expand=True)
         ttk.Label(hero_left, text="ZEDKD · Центр управления документами", style="Title.TLabel").pack(anchor="w")
         ttk.Label(hero_left, text="Современный поток работы с криптографией и журналами", style="Muted.TLabel").pack(anchor="w", pady=(4, 0))
 
-        hero_right = tk.Frame(hero, bg="#0f172a")
+        hero_right = ttk.Frame(hero, style="Glass.TFrame")
         hero_right.pack(side="right")
         ttk.Label(hero_right, textvariable=self.user_name_var, style="Muted.TLabel").pack(anchor="e")
         ttk.Label(hero_right, textvariable=self.status_var, style="Pill.TLabel").pack(anchor="e", pady=(6, 0))
         ttk.Button(hero_right, text="Сменить пользователя", command=self.change_user, style="Ghost.TButton").pack(anchor="e", pady=(8, 0))
 
-        metrics = tk.Frame(shell, bg="#0b1224")
+        metrics = ttk.Frame(shell, style="Panel.TFrame")
         metrics.pack(fill="x", pady=(12, 6))
 
-        def make_metric(title: str, var: tk.StringVar, accent: str):
-            box = tk.Frame(metrics, bg="#0e162a", padx=14, pady=12, highlightbackground="#1e293b", highlightthickness=1)
+        meters_row = ttk.Frame(metrics, style="Panel.TFrame")
+        meters_row.pack(fill="x")
+
+        def make_meter(title: str, key: str, bootstyle: str):
+            box = ttk.Frame(meters_row, style="Panel.TFrame")
             box.pack(side="left", fill="x", expand=True, padx=6)
-            ttk.Label(box, text=title, style="Muted.TLabel").pack(anchor="w")
-            ttk.Label(box, textvariable=var, style="Title.TLabel").pack(anchor="w", pady=(2, 0))
-            ttk.Label(box, text="в базе", foreground=accent, background="#0e162a", font=("Inter", 9, "bold")).pack(anchor="w", pady=(2, 0))
 
-        make_metric("Документов", self.metrics_vars["total"], "#38bdf8")
-        make_metric("Подписано", self.metrics_vars["signed"], "#22c55e")
-        make_metric("Зашифровано", self.metrics_vars["encrypted"], "#f59e0b")
+            meter = Meter(
+                box,
+                bootstyle=bootstyle,
+                amounttotal=1,
+                amountusedvariable=self.metrics_vars[key],
+                metertype="semi",
+                meterthickness=14,
+                padding=8,
+                metersize=180,
+                textright="",
+                textfont=("Inter", 14, "bold"),
+                subtext=title,
+                subtextfont=("Inter", 10),
+                interactive=False,
+            )
+            meter.pack(fill="x", expand=True)
+            ttk.Label(box, textvariable=self.metrics_vars[key], style="Title.TLabel").pack(pady=(6, 0))
+            self.metric_meters[key] = meter
 
-        action_bar = tk.Frame(shell, bg="#0b1224")
+        make_meter("Документов в базе", "total", "info")
+        make_meter("Подписано", "signed", "success")
+        make_meter("Зашифровано", "encrypted", "warning")
+
+        Separator(shell, bootstyle="dark").pack(fill="x", pady=(6, 12))
+
+        action_bar = ttk.Frame(shell, style="Panel.TFrame")
         action_bar.pack(fill="x", pady=(6, 10))
-        tk.Frame(action_bar, bg="#1e293b", height=1).pack(fill="x", pady=(0, 10))
         ttk.Button(action_bar, text="Регистрация файла", command=self.register_document_dialog, style="CTA.TButton").pack(side="left", padx=(0, 8))
         ttk.Button(action_bar, text="Автопроход", command=self.run_all_steps, style="Primary.TButton").pack(side="left", padx=8)
         ttk.Button(action_bar, text="Следующий этап", command=self.run_next_step, style="Secondary.TButton").pack(side="left", padx=8)
@@ -258,7 +291,7 @@ class ZEDKDGApp:
 
         self.main_tabs.bind("<<NotebookTabChanged>>", self._sync_tab_selection)
 
-        status_bar = ttk.Label(shell, textvariable=self.status_var, anchor="w", relief="sunken")
+        status_bar = ttk.Label(shell, textvariable=self.status_var, anchor="w", relief="sunken", padding=(8, 6))
         status_bar.pack(fill="x", side="bottom", pady=(10, 0))
 
     def switch_view(self, key: str):
