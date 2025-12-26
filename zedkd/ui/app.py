@@ -247,7 +247,7 @@ class ZEDKDGApp:
                 box,
                 bootstyle=bootstyle,
                 amounttotal=1,
-                amountusedvariable=self.metrics_vars[key],
+                amountused=int(self.metrics_vars[key].get()),
                 metertype="semi",
                 meterthickness=14,
                 padding=8,
